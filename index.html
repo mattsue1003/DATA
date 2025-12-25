@@ -27,27 +27,44 @@
         .modal-scroll::-webkit-scrollbar-thumb:hover {
             background: #94a3b8;
         }
+        /* 音樂控制按鈕動畫 */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(20, 184, 166, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(20, 184, 166, 0); }
+            100% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(20, 184, 166, 0); }
+        }
+        .music-playing {
+            animation: pulse-ring 2s infinite;
+        }
     </style>
 </head>
 <body class="min-h-screen bg-slate-50 font-sans text-slate-800 flex flex-col">
 
     <!-- 頁首 Header -->
     <header class="bg-teal-600 text-white shadow-lg sticky top-0 z-40">
-        <div class="container mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center">
-            <div class="flex items-center gap-2 mb-4 md:mb-0">
+        <div class="container mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-2">
                 <i data-lucide="database" class="w-8 h-8"></i>
                 <h1 class="text-2xl font-bold tracking-wide">教案資料庫總攬</h1>
             </div>
             
-            <!-- 搜尋列 -->
-            <div class="relative w-full md:w-96">
-                <input
-                    type="text"
-                    id="searchInput"
-                    placeholder="搜尋教案名稱或類別..."
-                    class="w-full pl-10 pr-4 py-2 rounded-full border-none focus:ring-2 focus:ring-teal-300 text-slate-800 shadow-inner bg-teal-50 outline-none transition-all placeholder-slate-400"
-                />
-                <i data-lucide="search" class="absolute left-3 top-2.5 w-5 h-5 text-teal-600"></i>
+            <div class="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
+                <!-- 音樂控制按鈕 -->
+                <button id="musicToggle" class="flex items-center gap-2 bg-teal-700 hover:bg-teal-800 px-4 py-2 rounded-full transition-all text-sm font-medium border border-teal-500 shadow-sm" onclick="toggleBackgroundMusic()">
+                    <i id="musicIcon" data-lucide="music" class="w-4 h-4"></i>
+                    <span id="musicText">背景音樂: 開啟</span>
+                </button>
+
+                <!-- 搜尋列 -->
+                <div class="relative w-full md:w-96">
+                    <input
+                        type="text"
+                        id="searchInput"
+                        placeholder="搜尋教案名稱或類別..."
+                        class="w-full pl-10 pr-4 py-2 rounded-full border-none focus:ring-2 focus:ring-teal-300 text-slate-800 shadow-inner bg-teal-50 outline-none transition-all placeholder-slate-400"
+                    />
+                    <i data-lucide="search" class="absolute left-3 top-2.5 w-5 h-5 text-teal-600"></i>
+                </div>
             </div>
         </div>
     </header>
@@ -81,6 +98,22 @@
             <p class="mt-2 text-xs opacity-75">影片來源皆為 YouTube 公開資源，本平台僅提供彙整瀏覽。</p>
         </div>
     </footer>
+
+    <!-- 背景音樂 (隱藏 iframe) -->
+    <!-- 注意: 為了實現背景音樂，我們使用一個隱藏的 iframe -->
+    <!-- opacity: 0 和 pointer-events: none 確保它不可見且不干擾操作，但仍在 DOM 中以保持播放 -->
+    <div style="opacity: 0; pointer-events: none; position: fixed; bottom: 0; right: 0; height: 1px; width: 1px; overflow: hidden; z-index: -1;">
+        <iframe 
+            id="bgMusicIframe"
+            width="100%" 
+            height="100%" 
+            src="" 
+            title="Background Music" 
+            frameborder="0" 
+            allow="autoplay; encrypted-media" 
+            allowfullscreen>
+        </iframe>
+    </div>
 
     <!-- 影片播放 Modal (彈出視窗) -->
     <div id="videoModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/80 backdrop-blur-sm opacity-0 transition-opacity duration-300 ease-out">
@@ -169,11 +202,26 @@
         const modalCategory = document.getElementById('modalCategory');
         const modalDescription = document.getElementById('modalDescription');
         const videoIframe = document.getElementById('videoIframe');
+        
+        // 音樂相關元素
+        const bgMusicIframe = document.getElementById('bgMusicIframe');
+        const musicToggleBtn = document.getElementById('musicToggle');
+        const musicIcon = document.getElementById('musicIcon');
+        const musicText = document.getElementById('musicText');
+        
+        // 音樂設定
+        const MUSIC_ID = 'Ol9IgdUMyt8'; // 您提供的音樂影片 ID
+        // 參數說明: autoplay=1 (自動播放), loop=1 (循環), playlist=ID (循環必需), controls=0 (無控制條)
+        const MUSIC_URL = `https://www.youtube.com/embed/${MUSIC_ID}?autoplay=1&loop=1&playlist=${MUSIC_ID}&controls=0&playsinline=1&enablejsapi=1`;
+        let isMusicPlaying = true; // 預設狀態
 
         // 3. 初始化
         document.addEventListener('DOMContentLoaded', () => {
             renderVideos(LESSON_PLANS);
             
+            // 初始化背景音樂
+            initBackgroundMusic();
+
             // 搜尋監聽器
             searchInput.addEventListener('input', (e) => {
                 const term = e.target.value.trim();
@@ -181,7 +229,48 @@
             });
         });
 
-        // 4. 過濾功能
+        // 4. 背景音樂邏輯
+        function initBackgroundMusic() {
+            // 設定 iframe src 觸發載入
+            bgMusicIframe.src = MUSIC_URL;
+            updateMusicUI(true);
+
+            // 為了應對瀏覽器自動播放策略，如果被阻擋，UI 應保持播放狀態，讓使用者點擊即可觸發
+            // 這裡簡單設置：頁面點擊任意處時，如果應該播放但未播放，則嘗試重新觸發 (如果是 iframe 比較難偵測實際播放狀態，但我們可以引導用戶)
+        }
+
+        function toggleBackgroundMusic() {
+            if (isMusicPlaying) {
+                // 關閉音樂 (清空 src)
+                bgMusicIframe.src = '';
+                isMusicPlaying = false;
+                updateMusicUI(false);
+            } else {
+                // 開啟音樂
+                bgMusicIframe.src = MUSIC_URL;
+                isMusicPlaying = true;
+                updateMusicUI(true);
+            }
+        }
+
+        function updateMusicUI(isPlaying) {
+            if (isPlaying) {
+                musicText.innerText = '背景音樂: 開啟';
+                musicIcon.setAttribute('data-lucide', 'volume-2');
+                musicToggleBtn.classList.add('music-playing');
+                musicToggleBtn.classList.replace('bg-slate-700', 'bg-teal-700');
+            } else {
+                musicText.innerText = '背景音樂: 靜音';
+                musicIcon.setAttribute('data-lucide', 'volume-x');
+                musicToggleBtn.classList.remove('music-playing');
+                // 變灰
+                musicToggleBtn.classList.remove('bg-teal-700');
+                musicToggleBtn.style.backgroundColor = '#475569'; // slate-600
+            }
+            lucide.createIcons();
+        }
+
+        // 5. 過濾功能
         function filterVideos(term) {
             if (!term) {
                 renderVideos(LESSON_PLANS);
@@ -195,12 +284,10 @@
             renderVideos(filtered);
         }
 
-        // 5. 渲染列表
+        // 6. 渲染列表
         function renderVideos(videos) {
-            // 更新統計文字
             statsText.innerText = `共收錄 ${LESSON_PLANS.length} 筆教案，目前顯示 ${videos.length} 筆`;
 
-            // 處理無結果狀態
             if (videos.length === 0) {
                 grid.innerHTML = '';
                 grid.classList.add('hidden');
@@ -211,11 +298,9 @@
             grid.classList.remove('hidden');
             noResults.classList.add('hidden');
 
-            // 生成 HTML
             grid.innerHTML = videos.map(video => `
                 <div class="group bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border border-slate-100 cursor-pointer flex flex-col"
                      onclick="openModal('${video.id}')">
-                    <!-- 縮圖區域 -->
                     <div class="relative aspect-video bg-slate-200 overflow-hidden">
                         <img 
                             src="https://img.youtube.com/vi/${video.id}/hqdefault.jpg" 
@@ -223,19 +308,16 @@
                             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                             onerror="this.src='https://via.placeholder.com/640x360?text=無縮圖'"
                         />
-                        <!-- 播放遮罩 -->
                         <div class="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors flex items-center justify-center">
                             <div class="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                                 <i data-lucide="play" class="w-5 h-5 text-teal-600 ml-1 fill-current"></i>
                             </div>
                         </div>
-                        <!-- 類別標籤 -->
                         <div class="absolute top-2 right-2 bg-teal-600/90 text-white text-xs px-2 py-1 rounded-md backdrop-blur-sm shadow-sm">
                             ${video.category}
                         </div>
                     </div>
 
-                    <!-- 文字內容 -->
                     <div class="p-4 flex flex-col flex-grow">
                         <h3 class="text-lg font-bold text-slate-800 mb-2 line-clamp-2 group-hover:text-teal-600 transition-colors">
                             ${video.title}
@@ -255,25 +337,25 @@
                 </div>
             `).join('');
 
-            // 重新初始化圖示 (因為 DOM 內容變更了)
             lucide.createIcons();
         }
 
-        // 6. Modal 控制
+        // 7. Modal 控制 (包含背景音樂智慧暫停)
         function openModal(id) {
+            // 智慧暫停：如果背景音樂正在播放，暫時靜音/停止它
+            if (isMusicPlaying) {
+                bgMusicIframe.src = ''; // 移除 src 以停止聲音
+            }
+
             const video = LESSON_PLANS.find(v => v.id === id);
             if (!video) return;
 
-            // 填充內容
             modalTitle.innerText = video.title;
             modalCategory.innerText = video.category;
             modalDescription.innerText = video.description;
-            // 設定 autoplay=1 自動播放
             videoIframe.src = `https://www.youtube.com/embed/${video.id}?autoplay=1&rel=0`;
 
-            // 顯示 Modal (包含動畫)
             modal.classList.remove('hidden');
-            // 使用 setTimeout 確保 display:flex 先套用，再觸發 opacity transition
             setTimeout(() => {
                 modal.classList.remove('opacity-0');
                 modalContent.classList.remove('scale-95');
@@ -282,19 +364,21 @@
         }
 
         function closeModal() {
-            // 隱藏動畫
             modal.classList.add('opacity-0');
             modalContent.classList.remove('scale-100');
             modalContent.classList.add('scale-95');
             
-            // 等待動畫結束後隱藏元素並停止影片
             setTimeout(() => {
                 modal.classList.add('hidden');
-                videoIframe.src = ''; // 清空 src 以停止播放聲音
+                videoIframe.src = ''; // 停止教案影片
+                
+                // 智慧恢復：如果原本音樂是開啟狀態，恢復播放
+                if (isMusicPlaying) {
+                    bgMusicIframe.src = MUSIC_URL;
+                }
             }, 300);
         }
 
-        // 鍵盤 ESC 關閉支援
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
                 closeModal();
