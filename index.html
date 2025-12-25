@@ -1,0 +1,219 @@
+import React, { useState, useEffect } from 'react';
+import { Play, X, Search, Video, Database, Info } from 'lucide-react';
+
+// 教案資料數據
+const LESSON_PLANS = [
+  {
+    id: 'ZYgjKHwyA4g',
+    title: '吞嚥健康操 台語版',
+    category: '口腔保健',
+    description: '使用台語解說的吞嚥健康操，適合長輩日常練習，預防吞嚥困難。',
+  },
+  {
+    id: 'qZ87nEuBR4E',
+    title: '益口銅身操',
+    category: '綜合運動',
+    description: '由專家推薦的益口銅身操，強化咀嚼吞嚥能力，同時預防肺炎。',
+  },
+  {
+    id: 'RKB4NxhENyY',
+    title: '五行健康操',
+    category: '全身運動',
+    description: '經典的五行健康操，動作簡單易學，促進全身氣血循環。',
+  },
+  {
+    id: '_w50TfdCmKU',
+    title: '高齡者健康操',
+    category: '高齡照護',
+    description: '專為高齡者設計的健康操，動作溫和，安全性高。',
+  },
+  {
+    id: 'pCA8u2KrwTg',
+    title: '那魯灣舞曲',
+    category: '律動舞蹈',
+    description: '搭配那魯灣舞曲的銀髮健康操，在歡樂的音樂中活動筋骨。',
+  },
+];
+
+const App = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedVideo, setSelectedVideo] = useState(null);
+  const [filteredVideos, setFilteredVideos] = useState(LESSON_PLANS);
+
+  // 根據搜尋詞過濾影片
+  useEffect(() => {
+    const results = LESSON_PLANS.filter(video =>
+      video.title.includes(searchTerm) || 
+      video.category.includes(searchTerm)
+    );
+    setFilteredVideos(results);
+  }, [searchTerm]);
+
+  // 開啟影片播放器
+  const handleVideoClick = (video) => {
+    setSelectedVideo(video);
+  };
+
+  // 關閉影片播放器
+  const closeVideo = () => {
+    setSelectedVideo(null);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
+      {/* 頁首 Header */}
+      <header className="bg-teal-600 text-white shadow-lg sticky top-0 z-40">
+        <div className="container mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center">
+          <div className="flex items-center gap-2 mb-4 md:mb-0">
+            <Database className="w-8 h-8" />
+            <h1 className="text-2xl font-bold tracking-wide">教案資料庫總攬</h1>
+          </div>
+          
+          {/* 搜尋列 */}
+          <div className="relative w-full md:w-96">
+            <input
+              type="text"
+              placeholder="搜尋教案名稱或類別..."
+              className="w-full pl-10 pr-4 py-2 rounded-full border-none focus:ring-2 focus:ring-teal-300 text-slate-800 shadow-inner bg-teal-50"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <Search className="absolute left-3 top-2.5 w-5 h-5 text-teal-600" />
+          </div>
+        </div>
+      </header>
+
+      {/* 主要內容區 */}
+      <main className="container mx-auto px-4 py-8">
+        
+        {/* 統計資訊 */}
+        <div className="mb-6 text-slate-500 flex items-center gap-2 text-sm">
+          <Info className="w-4 h-4" />
+          <span>共收錄 {LESSON_PLANS.length} 筆教案，目前顯示 {filteredVideos.length} 筆</span>
+        </div>
+
+        {/* 影片列表 Grid */}
+        {filteredVideos.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredVideos.map((video) => (
+              <div 
+                key={video.id}
+                className="group bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border border-slate-100 cursor-pointer flex flex-col"
+                onClick={() => handleVideoClick(video)}
+              >
+                {/* 縮圖區域 */}
+                <div className="relative aspect-video bg-slate-200 overflow-hidden">
+                  <img 
+                    src={`https://img.youtube.com/vi/${video.id}/hqdefault.jpg`} 
+                    alt={video.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    onError={(e) => {
+                      e.target.src = 'https://via.placeholder.com/640x360?text=Video+Thumbnail';
+                    }}
+                  />
+                  {/* 播放遮罩 */}
+                  <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                    <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                      <Play className="w-6 h-6 text-teal-600 ml-1" fill="currentColor" />
+                    </div>
+                  </div>
+                  {/* 類別標籤 */}
+                  <div className="absolute top-2 right-2 bg-teal-600/90 text-white text-xs px-2 py-1 rounded-md backdrop-blur-sm">
+                    {video.category}
+                  </div>
+                </div>
+
+                {/* 文字內容 */}
+                <div className="p-4 flex flex-col flex-grow">
+                  <h3 className="text-lg font-bold text-slate-800 mb-2 line-clamp-2 group-hover:text-teal-600 transition-colors">
+                    {video.title}
+                  </h3>
+                  <p className="text-slate-500 text-sm line-clamp-3 mb-4 flex-grow">
+                    {video.description}
+                  </p>
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+                    <span className="flex items-center gap-1">
+                      <Video className="w-3 h-3" /> YouTube 來源
+                    </span>
+                    <span className="bg-slate-100 px-2 py-1 rounded text-slate-600 group-hover:bg-teal-50 group-hover:text-teal-600 transition-colors">
+                      點擊觀看
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* 無搜尋結果 */
+          <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+            <Search className="w-16 h-16 mb-4 opacity-50" />
+            <p className="text-xl">找不到相關教案</p>
+            <p className="text-sm">請嘗試搜尋其他關鍵字</p>
+          </div>
+        )}
+      </main>
+
+      {/* 影片播放 Modal */}
+      {selectedVideo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div 
+            className="bg-white rounded-lg shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()} // 防止點擊內容關閉
+          >
+            {/* Modal Header */}
+            <div className="flex justify-between items-center p-4 border-b border-slate-200 bg-slate-50">
+              <div>
+                <h2 className="text-lg md:text-xl font-bold text-slate-800 line-clamp-1 pr-4">
+                  {selectedVideo.title}
+                </h2>
+                <span className="text-xs text-teal-600 font-medium px-2 py-0.5 bg-teal-50 rounded-full border border-teal-100 inline-block mt-1">
+                  {selectedVideo.category}
+                </span>
+              </div>
+              <button 
+                onClick={closeVideo}
+                className="p-2 hover:bg-slate-200 rounded-full transition-colors focus:outline-none"
+                aria-label="Close"
+              >
+                <X className="w-6 h-6 text-slate-600" />
+              </button>
+            </div>
+
+            {/* Video Container (Responsive Aspect Ratio) */}
+            <div className="relative w-full aspect-video bg-black">
+              <iframe
+                className="absolute top-0 left-0 w-full h-full"
+                src={`https://www.youtube.com/embed/${selectedVideo.id}?autoplay=1&rel=0`}
+                title={selectedVideo.title}
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              ></iframe>
+            </div>
+
+            {/* Modal Footer / Description */}
+            <div className="p-6 bg-white overflow-y-auto">
+              <h4 className="font-semibold text-slate-700 mb-2">教案簡介</h4>
+              <p className="text-slate-600 leading-relaxed">
+                {selectedVideo.description}
+              </p>
+            </div>
+          </div>
+          
+          {/* 點擊背景關閉區域 */}
+          <div className="absolute inset-0 -z-10" onClick={closeVideo}></div>
+        </div>
+      )}
+
+      {/* 頁尾 */}
+      <footer className="bg-slate-800 text-slate-400 py-6 text-center text-sm mt-auto">
+        <div className="container mx-auto">
+          <p>© 2024 教案資料庫總攬系統</p>
+          <p className="mt-2 text-xs">影片來源皆為 YouTube 公開資源，本平台僅提供彙整瀏覽。</p>
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+export default App;
